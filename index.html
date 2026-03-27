@@ -1,0 +1,71 @@
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Series Analysis Tool | أداة تحليل السلاسل الزمنية</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.27.1/plotly.min.js"></script>
+    <script type="module" src="config.js"></script>
+    <script type="module" src="app.js" defer></script>
+</head>
+
+<body>
+    <div class="mobile-nav-toggle">
+        <i class="fas fa-bars"></i>
+    </div>
+    <div class="sidebar">
+        <button id="langToggle" data-i18n="toggle_lang" title="Change Language"><i class="fas fa-language"></i>
+            EN/AR</button>
+        <div class="nav-section">
+            <input type="file" id="fileInput" hidden accept=".xlsx,.xls">
+            <button id="importBtn" data-i18n="import_excel" title="Import Excel File"><i
+                    class="fas fa-file-import"></i></button>
+            <button id="toggleDataBtn" data-i18n="toggle_data" title="Toggle Data Visibility"><i
+                    class="fas fa-table"></i></button>
+            <button id="statsBtn" data-i18n="descriptive_stats" title="Descriptive Statistics"><i
+                    class="fas fa-chart-bar"></i></button>
+            <button id="regressionBtn" data-i18n="multiple_regression" title="Multiple Regression"><i
+                    class="fas fa-chart-line"></i></button>
+            <button id="logisticBtn" data-i18n="logistic_regression" title="Logistic Regression"><i
+                    class="fas fa-percent"></i></button>
+            <button id="stationarityBtn" data-i18n="stationarity_analysis" title="Stationarity Analysis"><i
+                    class="fas fa-wave-square"></i></button>
+            <button id="ardlBtn" data-i18n="ardl_analysis" title="ARDL Analysis"><i
+                    class="fas fa-project-diagram"></i></button>
+            <button id="arimaBtn" data-i18n="arima_analysis" title="ARIMA Analysis"><i
+                    class="fas fa-chart-area"></i></button>
+            <button id="panelBtn" data-i18n="panel_analysis" title="Panel Analysis"><i
+                    class="fas fa-table"></i></button>
+            <button id="pcprBtn" data-i18n="pcpr_analysis" title="PCPR Analysis"><i
+                    class="fas fa-superscript"></i></button>
+            <button id="causalityBtn" data-i18n="causality_analysis" title="Causality Tests"><i
+                    class="fas fa-arrows-alt-h"></i></button>
+            <button id="rbfmvarBtn" data-i18n="rbfmvar_analysis" title="RBFM-VAR Analysis"><i
+                    class="fas fa-vector-square"></i></button>
+            <button id="shadowRateVARBtn" data-i18n="srvar_analysis" title="Shadow Rate VAR with ML"><i
+                    class="fas fa-eye-slash"></i></button>
+            <button id="quantumRegBtn" data-i18n="qreg_analysis" title="Quantum Regression"><i
+                    class="fas fa-atom"></i></button>
+            <button id="quantileRegBtn" data-i18n="qtlreg_analysis" title="Quantile Regression"><i
+                    class="fas fa-layer-group"></i></button>
+            <button id="vizBtn" data-i18n="visualizations" title="Visualizations"><i
+                    class="fas fa-chart-pie"></i></button>
+            <button id="exportBtn" data-i18n="export_word" title="Export to Word"><i
+                    class="fas fa-file-word"></i></button>
+        </div>
+    </div>
+
+    <main>
+        <h1 data-i18n="main_title">أداة تحليل السلاسل الزمنية</h1>
+        <div id="dataPreview" class="content-section"></div>
+        <div id="results" class="content-section"></div>
+        <footer class="footer">
+            2025 Copyright salim-slimani
+        </footer>
+    </main>
+</body>
+
+</html>
