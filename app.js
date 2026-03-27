@@ -1,7 +1,14 @@
-import { config } from './config.js';
-import { performDiagnosticTests } from './diagnostics.js';
-import { performARDLDiagnosticTests } from './ardl-diagnostics.js';
-import { createDummyVariableUI, initDummyVariables, getSelectedDummies, createDummyVariablesInData } from './dummy-variables.js';
+// All dependencies are loaded as window globals via standard script tags:
+// window.config (config.js), window.performDiagnosticTests (diagnostics.js),
+// window.performARDLDiagnosticTests (ardl-diagnostics.js),
+// window.createDummyVariableUI, window.initDummyVariables, window.getSelectedDummies, window.createDummyVariablesInData (dummy-variables.js)
+const config = window.config;
+const performDiagnosticTests = window.performDiagnosticTests;
+const performARDLDiagnosticTests = window.performARDLDiagnosticTests;
+const createDummyVariableUI = window.createDummyVariableUI;
+const initDummyVariables = window.initDummyVariables;
+const getSelectedDummies = window.getSelectedDummies;
+const createDummyVariablesInData = window.createDummyVariablesInData;
 
 let currentLang = 'ar';
 let dataset = null;
@@ -1727,8 +1734,8 @@ function displayDiagnosticResults(results) {
     createResidualHistogram(results.residuals, 'residualHistogram');
     createCUSUMPlot('cusumPlot');
     createResidualFittedPlot(results.residuals, results.fittedValues, 'residualFitted');
-    createACFPlot(results.residuals, 'acfPlot');
-    createPACFPlot(results.residuals, 'pacfPlot');
+    createACFPlotSVG(results.residuals, 'acfPlot');
+    createPACFPlotSVG(results.residuals, 'pacfPlot');
 }
 
 function createResidualHistogram(residuals, elementId) {
@@ -1864,7 +1871,7 @@ function createResidualFittedPlot(residuals, fitted, elementId) {
  * @param {number[]} residuals - Residual values
  * @param {string} elementId - Target element ID
  */
-function createACFPlot(residuals, elementId) {
+function createACFPlotSVG(residuals, elementId) {
     const el = document.getElementById(elementId);
     if (!el) return;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1941,7 +1948,7 @@ function createACFPlot(residuals, elementId) {
  * @param {number[]} residuals - Residual values
  * @param {string} elementId - Target element ID
  */
-function createPACFPlot(residuals, elementId) {
+function createPACFPlotSVG(residuals, elementId) {
     const el = document.getElementById(elementId);
     if (!el) return;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -2631,8 +2638,8 @@ function displayARDLDiagnosticResults(results) {
     createResidualHistogram(results.residuals, 'ardlResidualHistogram');
     createCUSUMPlot('cusumPlot');
     createResidualFittedPlot(results.residuals, results.fittedValues, 'ardlResidualFitted');
-    createACFPlot(results.residuals, 'ardlAcfPlot');
-    createPACFPlot(results.residuals, 'ardlPacfPlot');
+    createACFPlotSVG(results.residuals, 'ardlAcfPlot');
+    createPACFPlotSVG(results.residuals, 'ardlPacfPlot');
 }
 
 // ==========================================
@@ -5945,6 +5952,15 @@ function showVisualizations() {
         { key: 'scatter', en: 'Scatter Plot', ar: 'مخطط الانتشار' },
         { key: 'bar', en: 'Bar Plot', ar: 'مخطط شريطي' },
         { key: 'line', en: 'Line Plot', ar: 'مخطط خطي' },
+        { key: 'area', en: 'Area Chart', ar: 'مخطط المساحة' },
+        { key: 'stacked_area', en: 'Stacked Area Chart', ar: 'مخطط المساحة المكدس' },
+        { key: 'radar', en: 'Radar / Spider Chart', ar: 'مخطط الرادار / العنكبوت' },
+        { key: 'scatter_matrix', en: 'Scatter Matrix', ar: 'مصفوفة الانتشار' },
+        { key: 'acf', en: 'ACF Plot', ar: 'مخطط دالة الارتباط الذاتي' },
+        { key: 'pacf', en: 'PACF Plot', ar: 'مخطط دالة الارتباط الذاتي الجزئي' },
+        { key: 'candlestick', en: 'Candlestick Chart', ar: 'مخطط الشمعدان' },
+        { key: 'waterfall', en: 'Waterfall Chart', ar: 'مخطط الشلال' },
+        { key: 'ridgeline', en: 'Ridgeline Plot', ar: 'مخطط التلال' },
         { key: 'qq', en: 'Q-Q Plot', ar: 'مخطط Q-Q' },
         { key: 'pp', en: 'P-P Plot', ar: 'مخطط P-P' },
         { key: 'logit', en: 'Logit Plot', ar: 'مخطط لوجيت' },
@@ -5981,6 +5997,13 @@ function showVisualizations() {
                     ${visualizationOptionsHtml}
                 </select>
             </div>
+
+            <div class="variable-section" id="compareToggleSection" style="display:none;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+                    <input type="checkbox" id="compareVarsToggle">
+                    ${config.i18n[currentLang].compare_variables}
+                </label>
+            </div>
             
             <div class="variable-section" id="singleVarOptions">
                 <h4>${config.i18n[currentLang].select_variables}</h4>
@@ -6002,6 +6025,19 @@ function showVisualizations() {
                     <label>${config.i18n[currentLang].ma_model}:
                         <input type="number" min="0" max="5" value="0" id="vizMA">
                     </label>
+                </div>
+            </div>
+
+            <div class="variable-section hidden" id="compareVarOptions">
+                <h4>${config.i18n[currentLang].select_compare_vars}</h4>
+                <div class="independent-vars-container">
+                    ${numericColumns.map(col =>
+        `<div class="var-row">
+                            <label class="var-checkbox">
+                                <input type="checkbox" name="compareVar" value="${col}"> ${col}
+                            </label>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
             
@@ -6051,6 +6087,7 @@ function showVisualizations() {
     // Add event listener for visualization type change
     document.getElementById('visualizationType').addEventListener('change', updateVisualizationOptions);
     document.getElementById('createVisualizationBtn').addEventListener('click', createVisualization);
+    document.getElementById('compareVarsToggle').addEventListener('change', updateVisualizationOptions);
 
     // Initialize options based on default visualization type
     updateVisualizationOptions();
@@ -6061,19 +6098,35 @@ function updateVisualizationOptions() {
     const singleVarOptions = document.getElementById('singleVarOptions');
     const multiVarOptions = document.getElementById('multiVarOptions');
     const multivariateOptions = document.getElementById('multivariateOptions');
+    const compareToggleSection = document.getElementById('compareToggleSection');
+    const compareVarOptions = document.getElementById('compareVarOptions');
+    const compareToggle = document.getElementById('compareVarsToggle');
 
+    // Chart types that support compare mode (multi-variable overlay)
+    const comparableTypes = ['violin', 'density', 'histogram', 'box', 'bar', 'line', 'area', 'acf', 'pacf', 'candlestick', 'waterfall'];
     // Types that need a single variable
-    const singleVarTypes = ['violin', 'density', 'histogram', 'box', 'bar', 'line', 'qq', 'pp', 'logit', 'probit'];
+    const singleVarTypes = ['violin', 'density', 'histogram', 'box', 'bar', 'line', 'area', 'qq', 'pp', 'logit', 'probit', 'acf', 'pacf', 'candlestick', 'waterfall'];
     // Types that need two variables (X and Y)
     const twoVarTypes = ['scatter'];
     // Types that need multiple variables
-    const multiVarTypes = ['heatmap', 'correlogram'];
+    const multiVarTypes = ['heatmap', 'correlogram', 'stacked_area', 'radar', 'scatter_matrix', 'ridgeline'];
+
+    const isCompare = compareToggle && compareToggle.checked && comparableTypes.includes(vizType);
 
     singleVarOptions.classList.remove('hidden');
     multiVarOptions.classList.add('hidden');
     multivariateOptions.classList.add('hidden');
+    compareVarOptions.classList.add('hidden');
+    compareToggleSection.style.display = 'none';
 
-    if (twoVarTypes.includes(vizType)) {
+    if (comparableTypes.includes(vizType)) {
+        compareToggleSection.style.display = '';
+    }
+
+    if (isCompare) {
+        singleVarOptions.classList.add('hidden');
+        compareVarOptions.classList.remove('hidden');
+    } else if (twoVarTypes.includes(vizType)) {
         singleVarOptions.classList.remove('hidden');
         multiVarOptions.classList.remove('hidden');
         multiVarOptions.querySelector('h4').textContent = currentLang === 'ar' ? 'متغير Y' : 'Y Variable';
@@ -6095,50 +6148,33 @@ function createVisualization() {
         plot_bgcolor: 'rgba(245,247,250,1)',
         font: { family: 'Segoe UI, Tahoma, sans-serif', size: 13, color: '#2c3e50' },
         margin: { t: 50, b: 60, l: 60, r: 30 },
-        colorway: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e']
+        colorway: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#c0392b', '#27ae60', '#2980b9', '#8e44ad']
     };
 
     try {
         switch (vizType) {
-            case 'violin':
-                createViolinPlot(plotDiv, layoutDefaults);
-                break;
-            case 'density':
-                createDensityPlot(plotDiv, layoutDefaults);
-                break;
-            case 'histogram':
-                createHistogramPlot(plotDiv, layoutDefaults);
-                break;
-            case 'box':
-                createBoxPlot(plotDiv, layoutDefaults);
-                break;
-            case 'heatmap':
-                createHeatmapPlot(plotDiv, layoutDefaults);
-                break;
-            case 'correlogram':
-                createCorrelogramPlot(plotDiv, layoutDefaults);
-                break;
-            case 'scatter':
-                createScatterPlot(plotDiv, layoutDefaults);
-                break;
-            case 'bar':
-                createBarPlot(plotDiv, layoutDefaults);
-                break;
-            case 'line':
-                createLinePlot(plotDiv, layoutDefaults);
-                break;
-            case 'qq':
-                createQQPlot(plotDiv, layoutDefaults);
-                break;
-            case 'pp':
-                createPPPlot(plotDiv, layoutDefaults);
-                break;
-            case 'logit':
-                createLogitPlot(plotDiv, layoutDefaults);
-                break;
-            case 'probit':
-                createProbitPlot(plotDiv, layoutDefaults);
-                break;
+            case 'violin': createViolinPlot(plotDiv, layoutDefaults); break;
+            case 'density': createDensityPlot(plotDiv, layoutDefaults); break;
+            case 'histogram': createHistogramPlot(plotDiv, layoutDefaults); break;
+            case 'box': createBoxPlot(plotDiv, layoutDefaults); break;
+            case 'heatmap': createHeatmapPlot(plotDiv, layoutDefaults); break;
+            case 'correlogram': createCorrelogramPlot(plotDiv, layoutDefaults); break;
+            case 'scatter': createScatterPlot(plotDiv, layoutDefaults); break;
+            case 'bar': createBarPlot(plotDiv, layoutDefaults); break;
+            case 'line': createLinePlot(plotDiv, layoutDefaults); break;
+            case 'area': createAreaPlot(plotDiv, layoutDefaults); break;
+            case 'stacked_area': createStackedAreaPlot(plotDiv, layoutDefaults); break;
+            case 'radar': createRadarPlot(plotDiv, layoutDefaults); break;
+            case 'scatter_matrix': createScatterMatrixPlot(plotDiv, layoutDefaults); break;
+            case 'acf': createACFPlot(plotDiv, layoutDefaults); break;
+            case 'pacf': createPACFPlot(plotDiv, layoutDefaults); break;
+            case 'candlestick': createCandlestickPlot(plotDiv, layoutDefaults); break;
+            case 'waterfall': createWaterfallPlot(plotDiv, layoutDefaults); break;
+            case 'ridgeline': createRidgelinePlot(plotDiv, layoutDefaults); break;
+            case 'qq': createQQPlot(plotDiv, layoutDefaults); break;
+            case 'pp': createPPPlot(plotDiv, layoutDefaults); break;
+            case 'logit': createLogitPlot(plotDiv, layoutDefaults); break;
+            case 'probit': createProbitPlot(plotDiv, layoutDefaults); break;
         }
     } catch (e) {
         outputDiv.innerHTML = `<p style="color:red;">${currentLang === 'ar' ? 'خطأ في إنشاء الرسم البياني: ' : 'Error creating visualization: '}${e.message}</p>`;
@@ -6177,106 +6213,142 @@ function getVizData(varName, transform, diff, ar, ma) {
     return values;
 }
 
-function createViolinPlot(plotDiv, layoutDefaults) {
-    const varName = document.getElementById('vizVariable').value;
-    const transform = document.getElementById('vizTransform').value;
-    const { diff, ar, ma } = getVizParams();
-    const values = getVizData(varName, transform, diff, ar, ma);
-
-    Plotly.newPlot(plotDiv, [{
-        type: 'violin',
-        y: values,
-        name: varName,
-        box: { visible: true },
-        meanline: { visible: true },
-        fillcolor: 'rgba(52,152,219,0.3)',
-        line: { color: '#2980b9' }
-    }], {
-        ...layoutDefaults,
-        title: currentLang === 'ar' ? `مخطط الكمان - ${varName}` : `Violin Plot - ${varName}`,
-        yaxis: { title: varName }
-    }, { responsive: true });
+// Helper: get selected compare variables
+function getCompareVars() {
+    return Array.from(document.querySelectorAll('input[name="compareVar"]:checked')).map(cb => cb.value);
 }
 
-function createDensityPlot(plotDiv, layoutDefaults) {
-    const varName = document.getElementById('vizVariable').value;
-    const transform = document.getElementById('vizTransform').value;
-    const { diff, ar, ma } = getVizParams();
-    const values = getVizData(varName, transform, diff, ar, ma);
+function isCompareMode() {
+    const toggle = document.getElementById('compareVarsToggle');
+    return toggle && toggle.checked;
+}
 
-    // Kernel density estimation (simple Gaussian KDE)
+const COMPARE_COLORS = ['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e','#c0392b','#27ae60','#2980b9','#8e44ad'];
+
+function computeKDE(values) {
     const sorted = [...values].sort((a, b) => a - b);
-    const min = sorted[0];
-    const max = sorted[sorted.length - 1];
+    const min = sorted[0]; const max = sorted[sorted.length - 1];
     const range = max - min || 1;
     const bandwidth = range / Math.sqrt(values.length) * 1.06;
-    const n = 200;
-    const xPoints = [];
-    const yPoints = [];
+    const n = 200; const xPoints = []; const yPoints = [];
     for (let i = 0; i < n; i++) {
         const x = min - range * 0.1 + (range * 1.2) * i / (n - 1);
         xPoints.push(x);
         let density = 0;
-        for (const v of values) {
-            density += Math.exp(-0.5 * Math.pow((x - v) / bandwidth, 2));
-        }
+        for (const v of values) { density += Math.exp(-0.5 * Math.pow((x - v) / bandwidth, 2)); }
         density /= (values.length * bandwidth * Math.sqrt(2 * Math.PI));
         yPoints.push(density);
     }
+    return { xPoints, yPoints };
+}
 
-    Plotly.newPlot(plotDiv, [{
-        x: xPoints,
-        y: yPoints,
-        type: 'scatter',
-        mode: 'lines',
-        fill: 'tozeroy',
-        fillcolor: 'rgba(52,152,219,0.2)',
-        line: { color: '#3498db', width: 2 },
-        name: varName
-    }], {
-        ...layoutDefaults,
-        title: currentLang === 'ar' ? `مخطط الكثافة - ${varName}` : `Density Plot - ${varName}`,
-        xaxis: { title: varName },
-        yaxis: { title: currentLang === 'ar' ? 'الكثافة' : 'Density' }
-    }, { responsive: true });
+function createViolinPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => ({
+            type: 'violin', y: getVizData(v, 'none', 0, 0, 0), name: v,
+            box: { visible: true }, meanline: { visible: true },
+            fillcolor: COMPARE_COLORS[i % COMPARE_COLORS.length] + '4D',
+            line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length] }
+        }));
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+            title: currentLang === 'ar' ? 'مقارنة مخطط الكمان' : 'Violin Plot Comparison'
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        Plotly.newPlot(plotDiv, [{ type: 'violin', y: values, name: varName,
+            box: { visible: true }, meanline: { visible: true },
+            fillcolor: 'rgba(52,152,219,0.3)', line: { color: '#2980b9' }
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط الكمان - ${varName}` : `Violin Plot - ${varName}`,
+            yaxis: { title: varName }
+        }, { responsive: true });
+    }
+}
+
+function createDensityPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            const { xPoints, yPoints } = computeKDE(values);
+            return { x: xPoints, y: yPoints, type: 'scatter', mode: 'lines', fill: 'tozeroy',
+                fillcolor: COMPARE_COLORS[i % COMPARE_COLORS.length] + '33',
+                line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], width: 2 }, name: v };
+        });
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+            title: currentLang === 'ar' ? 'مقارنة مخطط الكثافة' : 'Density Plot Comparison',
+            yaxis: { title: currentLang === 'ar' ? 'الكثافة' : 'Density' }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const { xPoints, yPoints } = computeKDE(values);
+        Plotly.newPlot(plotDiv, [{ x: xPoints, y: yPoints, type: 'scatter', mode: 'lines', fill: 'tozeroy',
+            fillcolor: 'rgba(52,152,219,0.2)', line: { color: '#3498db', width: 2 }, name: varName
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط الكثافة - ${varName}` : `Density Plot - ${varName}`,
+            xaxis: { title: varName }, yaxis: { title: currentLang === 'ar' ? 'الكثافة' : 'Density' }
+        }, { responsive: true });
+    }
 }
 
 function createHistogramPlot(plotDiv, layoutDefaults) {
-    const varName = document.getElementById('vizVariable').value;
-    const transform = document.getElementById('vizTransform').value;
-    const { diff, ar, ma } = getVizParams();
-    const values = getVizData(varName, transform, diff, ar, ma);
-
-    Plotly.newPlot(plotDiv, [{
-        x: values,
-        type: 'histogram',
-        marker: { color: 'rgba(52,152,219,0.7)', line: { color: '#2980b9', width: 1 } },
-        name: varName
-    }], {
-        ...layoutDefaults,
-        title: currentLang === 'ar' ? `المدرج التكراري - ${varName}` : `Histogram - ${varName}`,
-        xaxis: { title: varName },
-        yaxis: { title: currentLang === 'ar' ? 'التكرار' : 'Frequency' }
-    }, { responsive: true });
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => ({
+            x: getVizData(v, 'none', 0, 0, 0), type: 'histogram', opacity: 0.6,
+            marker: { color: COMPARE_COLORS[i % COMPARE_COLORS.length] }, name: v
+        }));
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults, barmode: 'overlay',
+            title: currentLang === 'ar' ? 'مقارنة المدرج التكراري' : 'Histogram Comparison',
+            yaxis: { title: currentLang === 'ar' ? 'التكرار' : 'Frequency' }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        Plotly.newPlot(plotDiv, [{ x: values, type: 'histogram',
+            marker: { color: 'rgba(52,152,219,0.7)', line: { color: '#2980b9', width: 1 } }, name: varName
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `المدرج التكراري - ${varName}` : `Histogram - ${varName}`,
+            xaxis: { title: varName }, yaxis: { title: currentLang === 'ar' ? 'التكرار' : 'Frequency' }
+        }, { responsive: true });
+    }
 }
 
 function createBoxPlot(plotDiv, layoutDefaults) {
-    const varName = document.getElementById('vizVariable').value;
-    const transform = document.getElementById('vizTransform').value;
-    const { diff, ar, ma } = getVizParams();
-    const values = getVizData(varName, transform, diff, ar, ma);
-
-    Plotly.newPlot(plotDiv, [{
-        y: values,
-        type: 'box',
-        name: varName,
-        marker: { color: '#3498db' },
-        boxmean: 'sd'
-    }], {
-        ...layoutDefaults,
-        title: currentLang === 'ar' ? `مخطط الصندوق - ${varName}` : `Boxplot - ${varName}`,
-        yaxis: { title: varName }
-    }, { responsive: true });
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => ({
+            y: getVizData(v, 'none', 0, 0, 0), type: 'box', name: v,
+            marker: { color: COMPARE_COLORS[i % COMPARE_COLORS.length] }, boxmean: 'sd'
+        }));
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+            title: currentLang === 'ar' ? 'مقارنة مخطط الصندوق' : 'Boxplot Comparison'
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        Plotly.newPlot(plotDiv, [{ y: values, type: 'box', name: varName,
+            marker: { color: '#3498db' }, boxmean: 'sd'
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط الصندوق - ${varName}` : `Boxplot - ${varName}`,
+            yaxis: { title: varName }
+        }, { responsive: true });
+    }
 }
 
 function createHeatmapPlot(plotDiv, layoutDefaults) {
@@ -6433,51 +6505,416 @@ function createScatterPlot(plotDiv, layoutDefaults) {
 }
 
 function createBarPlot(plotDiv, layoutDefaults) {
-    const varName = document.getElementById('vizVariable').value;
-    const transform = document.getElementById('vizTransform').value;
-    const { diff, ar, ma } = getVizParams();
-    const values = getVizData(varName, transform, diff, ar, ma);
-    const indices = values.map((_, i) => i + 1);
-
-    Plotly.newPlot(plotDiv, [{
-        x: indices,
-        y: values,
-        type: 'bar',
-        marker: {
-            color: values.map((_, i) => `hsl(${(i * 360 / Math.min(values.length, 50)) % 360}, 70%, 55%)`),
-            line: { color: 'rgba(0,0,0,0.1)', width: 0.5 }
-        },
-        name: varName
-    }], {
-        ...layoutDefaults,
-        title: currentLang === 'ar' ? `مخطط شريطي - ${varName}` : `Bar Plot - ${varName}`,
-        xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' },
-        yaxis: { title: varName }
-    }, { responsive: true });
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            return { x: values.map((_, idx) => idx + 1), y: values, type: 'bar',
+                marker: { color: COMPARE_COLORS[i % COMPARE_COLORS.length] }, name: v, opacity: 0.8 };
+        });
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults, barmode: 'group',
+            title: currentLang === 'ar' ? 'مقارنة المخطط الشريطي' : 'Bar Plot Comparison',
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const indices = values.map((_, i) => i + 1);
+        Plotly.newPlot(plotDiv, [{ x: indices, y: values, type: 'bar',
+            marker: { color: values.map((_, i) => `hsl(${(i * 360 / Math.min(values.length, 50)) % 360}, 70%, 55%)`),
+                line: { color: 'rgba(0,0,0,0.1)', width: 0.5 } }, name: varName
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط شريطي - ${varName}` : `Bar Plot - ${varName}`,
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }, yaxis: { title: varName }
+        }, { responsive: true });
+    }
 }
 
 function createLinePlot(plotDiv, layoutDefaults) {
-    const varName = document.getElementById('vizVariable').value;
-    const transform = document.getElementById('vizTransform').value;
-    const { diff, ar, ma } = getVizParams();
-    const values = getVizData(varName, transform, diff, ar, ma);
-    const indices = values.map((_, i) => i + 1);
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            return { x: values.map((_, idx) => idx + 1), y: values, type: 'scatter', mode: 'lines+markers',
+                line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], width: 2 },
+                marker: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], size: 4 }, name: v };
+        });
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+            title: currentLang === 'ar' ? 'مقارنة المخطط الخطي' : 'Line Plot Comparison',
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const indices = values.map((_, i) => i + 1);
+        Plotly.newPlot(plotDiv, [{ x: indices, y: values, type: 'scatter', mode: 'lines+markers',
+            line: { color: '#3498db', width: 2 }, marker: { color: '#2980b9', size: 4 }, name: varName
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط خطي - ${varName}` : `Line Plot - ${varName}`,
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }, yaxis: { title: varName }
+        }, { responsive: true });
+    }
+}
 
-    Plotly.newPlot(plotDiv, [{
-        x: indices,
-        y: values,
-        type: 'scatter',
-        mode: 'lines+markers',
-        line: { color: '#3498db', width: 2 },
-        marker: { color: '#2980b9', size: 4 },
-        name: varName
-    }], {
-        ...layoutDefaults,
-        title: currentLang === 'ar' ? `مخطط خطي - ${varName}` : `Line Plot - ${varName}`,
-        xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' },
-        yaxis: { title: varName }
+// ===================== NEW CHART TYPES =====================
+
+function createAreaPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = vars.map((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            return { x: values.map((_, idx) => idx + 1), y: values, type: 'scatter', mode: 'lines',
+                fill: 'tozeroy', fillcolor: COMPARE_COLORS[i % COMPARE_COLORS.length] + '33',
+                line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], width: 2 }, name: v };
+        });
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+            title: currentLang === 'ar' ? 'مقارنة مخطط المساحة' : 'Area Chart Comparison',
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const indices = values.map((_, i) => i + 1);
+        Plotly.newPlot(plotDiv, [{ x: indices, y: values, type: 'scatter', mode: 'lines',
+            fill: 'tozeroy', fillcolor: 'rgba(52,152,219,0.3)',
+            line: { color: '#3498db', width: 2 }, name: varName
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط المساحة - ${varName}` : `Area Chart - ${varName}`,
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }, yaxis: { title: varName }
+        }, { responsive: true });
+    }
+}
+
+function createStackedAreaPlot(plotDiv, layoutDefaults) {
+    const checkedVars = Array.from(document.querySelectorAll('input[name="multiVarCheck"]:checked')).map(cb => cb.value);
+    if (checkedVars.length < 2) {
+        document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`;
+        return;
+    }
+    const traces = checkedVars.map((v, i) => {
+        const values = getVizData(v, 'none', 0, 0, 0);
+        return { x: values.map((_, idx) => idx + 1), y: values, type: 'scatter', mode: 'lines',
+            stackgroup: 'one', fillcolor: COMPARE_COLORS[i % COMPARE_COLORS.length] + '80',
+            line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], width: 1 }, name: v };
+    });
+    Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+        title: currentLang === 'ar' ? 'مخطط المساحة المكدس' : 'Stacked Area Chart',
+        xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation' }
     }, { responsive: true });
 }
+
+function createRadarPlot(plotDiv, layoutDefaults) {
+    const checkedVars = Array.from(document.querySelectorAll('input[name="multiVarCheck"]:checked')).map(cb => cb.value);
+    if (checkedVars.length < 3) {
+        document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار 3 متغيرات على الأقل' : 'Please select at least 3 variables'}</p>`;
+        return;
+    }
+    const stats = checkedVars.map(v => {
+        const values = getVizData(v, 'none', 0, 0, 0);
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const mn = Math.min(...values); const mx = Math.max(...values);
+        return { name: v, normalized: mx !== mn ? (mean - mn) / (mx - mn) : 0.5, mean };
+    });
+    const theta = stats.map(s => s.name); theta.push(theta[0]);
+    const r = stats.map(s => s.normalized); r.push(r[0]);
+    const rMean = stats.map(s => s.mean); rMean.push(rMean[0]);
+    Plotly.newPlot(plotDiv, [{
+        type: 'scatterpolar', r: r, theta: theta, fill: 'toself',
+        fillcolor: 'rgba(52,152,219,0.2)', line: { color: '#3498db', width: 2 },
+        name: currentLang === 'ar' ? 'القيمة المعيارية' : 'Normalized Value',
+        text: rMean.map(v => v.toFixed(2)), hovertemplate: '%{theta}: %{text}<extra></extra>'
+    }], { ...layoutDefaults,
+        title: currentLang === 'ar' ? 'مخطط الرادار' : 'Radar Chart',
+        polar: { radialaxis: { visible: true, range: [0, 1] } }
+    }, { responsive: true });
+}
+
+function createScatterMatrixPlot(plotDiv, layoutDefaults) {
+    const checkedVars = Array.from(document.querySelectorAll('input[name="multiVarCheck"]:checked')).map(cb => cb.value);
+    if (checkedVars.length < 2) {
+        document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`;
+        return;
+    }
+    const dimensions = checkedVars.map(v => ({
+        label: v, values: dataset.map(row => parseFloat(row[v])).filter(x => !isNaN(x))
+    }));
+    Plotly.newPlot(plotDiv, [{ type: 'splom', dimensions: dimensions,
+        marker: { color: '#3498db', size: 4, opacity: 0.6, line: { color: 'white', width: 0.5 } }
+    }], { ...layoutDefaults,
+        title: currentLang === 'ar' ? 'مصفوفة الانتشار' : 'Scatter Matrix',
+        height: Math.max(500, checkedVars.length * 150)
+    }, { responsive: true });
+}
+
+function computeACF(values) {
+    const n = values.length;
+    const maxLag = Math.min(Math.floor(n / 2), 40);
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+    const acfValues = [];
+    for (let k = 0; k <= maxLag; k++) {
+        let sum = 0;
+        for (let t = k; t < n; t++) { sum += (values[t] - mean) * (values[t - k] - mean); }
+        acfValues.push(variance === 0 ? 0 : sum / (n * variance));
+    }
+    return { acfValues, maxLag, confBound: 1.96 / Math.sqrt(n) };
+}
+
+function createACFPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = [];
+        let globalMaxLag = 0;
+        vars.forEach((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            const { acfValues, maxLag } = computeACF(values);
+            globalMaxLag = Math.max(globalMaxLag, maxLag);
+            const lags = acfValues.map((_, idx) => idx);
+            traces.push({ x: lags, y: acfValues, type: 'bar', marker: { color: COMPARE_COLORS[i % COMPARE_COLORS.length] }, name: v, opacity: 0.7 });
+        });
+        const minN = Math.min(...vars.map(v => getVizData(v, 'none', 0, 0, 0).length));
+        const confBound = 1.96 / Math.sqrt(minN);
+        traces.push({ x: [0, globalMaxLag], y: [confBound, confBound], type: 'scatter', mode: 'lines', line: { color: '#e74c3c', width: 1, dash: 'dash' }, name: '95% CI', showlegend: false });
+        traces.push({ x: [0, globalMaxLag], y: [-confBound, -confBound], type: 'scatter', mode: 'lines', line: { color: '#e74c3c', width: 1, dash: 'dash' }, showlegend: false });
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults, barmode: 'group',
+            title: currentLang === 'ar' ? 'مقارنة دالة الارتباط الذاتي' : 'ACF Comparison',
+            xaxis: { title: currentLang === 'ar' ? 'الإبطاء' : 'Lag' },
+            yaxis: { title: currentLang === 'ar' ? 'الارتباط الذاتي' : 'Autocorrelation', range: [-1, 1] }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const { acfValues, maxLag, confBound } = computeACF(values);
+        const lags = acfValues.map((_, i) => i);
+        Plotly.newPlot(plotDiv, [
+            { x: lags, y: acfValues, type: 'bar', marker: { color: '#3498db' },
+                name: currentLang === 'ar' ? 'الارتباط الذاتي' : 'ACF' },
+            { x: [0, maxLag], y: [confBound, confBound], type: 'scatter', mode: 'lines',
+                line: { color: '#e74c3c', width: 1, dash: 'dash' }, name: '95% CI', showlegend: false },
+            { x: [0, maxLag], y: [-confBound, -confBound], type: 'scatter', mode: 'lines',
+                line: { color: '#e74c3c', width: 1, dash: 'dash' }, showlegend: false }
+        ], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `دالة الارتباط الذاتي - ${varName}` : `ACF - ${varName}`,
+            xaxis: { title: currentLang === 'ar' ? 'الإبطاء' : 'Lag' },
+            yaxis: { title: currentLang === 'ar' ? 'الارتباط الذاتي' : 'Autocorrelation', range: [-1, 1] }
+        }, { responsive: true });
+    }
+}
+
+
+function computePACF(values) {
+    const n = values.length;
+    const maxLag = Math.min(Math.floor(n / 2), 40);
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+    const acf = [];
+    for (let k = 0; k <= maxLag; k++) {
+        let sum = 0;
+        for (let t = k; t < n; t++) { sum += (values[t] - mean) * (values[t - k] - mean); }
+        acf.push(variance === 0 ? 0 : sum / (n * variance));
+    }
+    const pacfValues = [1];
+    let phiPrev = [];
+    for (let k = 1; k <= maxLag; k++) {
+        let num = acf[k];
+        for (let j = 0; j < phiPrev.length; j++) { num -= phiPrev[j] * acf[k - 1 - j]; }
+        let den = 1;
+        for (let j = 0; j < phiPrev.length; j++) { den -= phiPrev[j] * acf[j + 1]; }
+        const phiKK = den === 0 ? 0 : num / den;
+        pacfValues.push(phiKK);
+        const newPhi = [];
+        for (let j = 0; j < phiPrev.length; j++) { newPhi.push(phiPrev[j] - phiKK * phiPrev[phiPrev.length - 1 - j]); }
+        newPhi.push(phiKK);
+        phiPrev = newPhi;
+    }
+    return { pacfValues, maxLag, confBound: 1.96 / Math.sqrt(n) };
+}
+
+function createPACFPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        const traces = [];
+        let globalMaxLag = 0;
+        vars.forEach((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            const { pacfValues, maxLag } = computePACF(values);
+            globalMaxLag = Math.max(globalMaxLag, maxLag);
+            const lags = pacfValues.map((_, idx) => idx);
+            traces.push({ x: lags, y: pacfValues, type: 'bar', marker: { color: COMPARE_COLORS[i % COMPARE_COLORS.length] }, name: v, opacity: 0.7 });
+        });
+        const minN = Math.min(...vars.map(v => getVizData(v, 'none', 0, 0, 0).length));
+        const confBound = 1.96 / Math.sqrt(minN);
+        traces.push({ x: [0, globalMaxLag], y: [confBound, confBound], type: 'scatter', mode: 'lines', line: { color: '#e74c3c', width: 1, dash: 'dash' }, name: '95% CI', showlegend: false });
+        traces.push({ x: [0, globalMaxLag], y: [-confBound, -confBound], type: 'scatter', mode: 'lines', line: { color: '#e74c3c', width: 1, dash: 'dash' }, showlegend: false });
+        Plotly.newPlot(plotDiv, traces, { ...layoutDefaults, barmode: 'group',
+            title: currentLang === 'ar' ? 'مقارنة دالة الارتباط الذاتي الجزئي' : 'PACF Comparison',
+            xaxis: { title: currentLang === 'ar' ? 'الإبطاء' : 'Lag' },
+            yaxis: { title: currentLang === 'ar' ? 'الارتباط الذاتي الجزئي' : 'Partial Autocorrelation', range: [-1, 1] }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const { pacfValues, maxLag, confBound } = computePACF(values);
+        const lags = pacfValues.map((_, i) => i);
+        Plotly.newPlot(plotDiv, [
+            { x: lags, y: pacfValues, type: 'bar', marker: { color: '#2ecc71' },
+                name: currentLang === 'ar' ? 'الارتباط الذاتي الجزئي' : 'PACF' },
+            { x: [0, maxLag], y: [confBound, confBound], type: 'scatter', mode: 'lines',
+                line: { color: '#e74c3c', width: 1, dash: 'dash' }, showlegend: false },
+            { x: [0, maxLag], y: [-confBound, -confBound], type: 'scatter', mode: 'lines',
+                line: { color: '#e74c3c', width: 1, dash: 'dash' }, showlegend: false }
+        ], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `دالة الارتباط الذاتي الجزئي - ${varName}` : `PACF - ${varName}`,
+            xaxis: { title: currentLang === 'ar' ? 'الإبطاء' : 'Lag' },
+            yaxis: { title: currentLang === 'ar' ? 'الارتباط الذاتي الجزئي' : 'Partial Autocorrelation', range: [-1, 1] }
+        }, { responsive: true });
+    }
+}
+
+function createCandlestickPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        // Use subplots - one row per variable
+        const outputDiv = document.getElementById('visualizationOutput');
+        outputDiv.innerHTML = vars.map((v, i) => `<div id="vizPlot_${i}" style="width:100%;min-height:350px;margin-bottom:10px;"></div>`).join('');
+        vars.forEach((v, i) => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            const windowSize = Math.max(3, Math.floor(values.length / 30));
+            const dates = [], opens = [], highs = [], lows = [], closes = [];
+            for (let j = 0; j < values.length; j += windowSize) {
+                const win = values.slice(j, Math.min(j + windowSize, values.length));
+                if (win.length === 0) continue;
+                dates.push(j + 1); opens.push(win[0]); closes.push(win[win.length - 1]);
+                highs.push(Math.max(...win)); lows.push(Math.min(...win));
+            }
+            Plotly.newPlot(document.getElementById(`vizPlot_${i}`), [{
+                x: dates, open: opens, high: highs, low: lows, close: closes, type: 'candlestick',
+                increasing: { line: { color: '#2ecc71' }, fillcolor: '#2ecc71' },
+                decreasing: { line: { color: '#e74c3c' }, fillcolor: '#e74c3c' },
+                name: v
+            }], { ...layoutDefaults,
+                title: `${currentLang === 'ar' ? 'مخطط الشمعدان' : 'Candlestick'} - ${v}`,
+                xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation', rangeslider: { visible: false } },
+                yaxis: { title: v }, height: 350
+            }, { responsive: true });
+        });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const windowSize = Math.max(3, Math.floor(values.length / 30));
+        const dates = [], opens = [], highs = [], lows = [], closes = [];
+        for (let i = 0; i < values.length; i += windowSize) {
+            const win = values.slice(i, Math.min(i + windowSize, values.length));
+            if (win.length === 0) continue;
+            dates.push(i + 1); opens.push(win[0]); closes.push(win[win.length - 1]);
+            highs.push(Math.max(...win)); lows.push(Math.min(...win));
+        }
+        Plotly.newPlot(plotDiv, [{
+            x: dates, open: opens, high: highs, low: lows, close: closes, type: 'candlestick',
+            increasing: { line: { color: '#2ecc71' }, fillcolor: '#2ecc71' },
+            decreasing: { line: { color: '#e74c3c' }, fillcolor: '#e74c3c' }
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط الشمعدان - ${varName}` : `Candlestick Chart - ${varName}`,
+            xaxis: { title: currentLang === 'ar' ? 'الملاحظة' : 'Observation', rangeslider: { visible: false } },
+            yaxis: { title: varName }
+        }, { responsive: true });
+    }
+}
+
+function createWaterfallPlot(plotDiv, layoutDefaults) {
+    if (isCompareMode()) {
+        const vars = getCompareVars();
+        if (vars.length < 2) { document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`; return; }
+        // Compare total change for each variable as grouped bars
+        const varNames = [], startValues = [], endValues = [], netChanges = [];
+        vars.forEach(v => {
+            const values = getVizData(v, 'none', 0, 0, 0);
+            if (values.length < 2) return;
+            varNames.push(v);
+            startValues.push(values[0]);
+            endValues.push(values[values.length - 1]);
+            netChanges.push(values[values.length - 1] - values[0]);
+        });
+        Plotly.newPlot(plotDiv, [
+            { x: varNames, y: startValues, type: 'bar', name: currentLang === 'ar' ? 'القيمة الأولى' : 'Start Value',
+                marker: { color: '#3498db' } },
+            { x: varNames, y: netChanges, type: 'bar', name: currentLang === 'ar' ? 'صافي التغيير' : 'Net Change',
+                marker: { color: netChanges.map(c => c >= 0 ? '#2ecc71' : '#e74c3c') } },
+            { x: varNames, y: endValues, type: 'bar', name: currentLang === 'ar' ? 'القيمة الأخيرة' : 'End Value',
+                marker: { color: '#f39c12' } }
+        ], { ...layoutDefaults, barmode: 'group',
+            title: currentLang === 'ar' ? 'مقارنة مخطط الشلال' : 'Waterfall Comparison',
+            yaxis: { title: currentLang === 'ar' ? 'القيمة' : 'Value' }
+        }, { responsive: true });
+    } else {
+        const varName = document.getElementById('vizVariable').value;
+        const transform = document.getElementById('vizTransform').value;
+        const { diff, ar, ma } = getVizParams();
+        const values = getVizData(varName, transform, diff, ar, ma);
+        const changes = [], labels = [], measures = [];
+        labels.push(currentLang === 'ar' ? 'البداية' : 'Start');
+        changes.push(values[0]); measures.push('absolute');
+        const step = Math.max(1, Math.floor(values.length / 25));
+        for (let i = step; i < values.length; i += step) {
+            labels.push(`${i + 1}`); changes.push(values[i] - values[i - step]); measures.push('relative');
+        }
+        labels.push(currentLang === 'ar' ? 'المجموع' : 'Total');
+        changes.push(values[values.length - 1]); measures.push('total');
+        Plotly.newPlot(plotDiv, [{ type: 'waterfall', orientation: 'v',
+            x: labels, y: changes, measure: measures,
+            connector: { line: { color: '#7f8c8d', width: 1 } },
+            increasing: { marker: { color: '#2ecc71' } },
+            decreasing: { marker: { color: '#e74c3c' } },
+            totals: { marker: { color: '#3498db' } }
+        }], { ...layoutDefaults,
+            title: currentLang === 'ar' ? `مخطط الشلال - ${varName}` : `Waterfall Chart - ${varName}`,
+            yaxis: { title: varName }, showlegend: false
+        }, { responsive: true });
+    }
+}
+
+function createRidgelinePlot(plotDiv, layoutDefaults) {
+    const checkedVars = Array.from(document.querySelectorAll('input[name="multiVarCheck"]:checked')).map(cb => cb.value);
+    if (checkedVars.length < 2) {
+        document.getElementById('visualizationOutput').innerHTML = `<p>${currentLang === 'ar' ? 'يرجى اختيار متغيرين على الأقل' : 'Please select at least 2 variables'}</p>`;
+        return;
+    }
+    const traces = [];
+    checkedVars.forEach((v, i) => {
+        const values = getVizData(v, 'none', 0, 0, 0);
+        const { xPoints, yPoints } = computeKDE(values);
+        const offset = i * 0.3;
+        const yOffset = yPoints.map(y => y + offset);
+        traces.push({ x: xPoints, y: yOffset, type: 'scatter', mode: 'lines', fill: 'tozeroy',
+            fillcolor: COMPARE_COLORS[i % COMPARE_COLORS.length] + '55',
+            line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], width: 2 }, name: v });
+    });
+    Plotly.newPlot(plotDiv, traces, { ...layoutDefaults,
+        title: currentLang === 'ar' ? 'مخطط التلال' : 'Ridgeline Plot',
+        yaxis: { title: currentLang === 'ar' ? 'الكثافة' : 'Density', showticklabels: false },
+        showlegend: true
+    }, { responsive: true });
+}
+
+// ===================== END NEW CHART TYPES =====================
 
 function createQQPlot(plotDiv, layoutDefaults) {
     const varName = document.getElementById('vizVariable').value;

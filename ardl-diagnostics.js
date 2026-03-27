@@ -13,7 +13,7 @@
  * @param {Object} data - Contains dataset, variable names, and residuals
  * @returns {Object} - Results of diagnostic tests
  */
-export function performARDLDiagnosticTests(data) {
+window.performARDLDiagnosticTests = function performARDLDiagnosticTests(data) {
     const { residuals } = data;
     
     // For demonstration, we'll create some fitted values

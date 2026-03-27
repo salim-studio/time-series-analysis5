@@ -8,7 +8,7 @@
  * @param {string} currentLang - Current language code
  * @returns {HTMLElement} - DOM element with the dummy variable interface
  */
-export function createDummyVariableUI(dataset, currentLang) {
+window.createDummyVariableUI = function createDummyVariableUI(dataset, currentLang) {
     if (!dataset || dataset.length === 0) return null;
     
     // Create container element
@@ -82,7 +82,7 @@ export function createDummyVariableUI(dataset, currentLang) {
  * @param {Array} dataset - The dataset to analyze
  * @param {string} currentLang - Current language code
  */
-export function initDummyVariables(dataset, currentLang) {
+window.initDummyVariables = function initDummyVariables(dataset, currentLang) {
     // Wait for the DOM to be ready
     setTimeout(() => {
         const loadYearsBtn = document.getElementById('loadYearsBtn');
@@ -206,7 +206,7 @@ function addToSelectedDummies(dummyName, currentLang) {
  * Get all selected dummy variables
  * @returns {Array} - Array of dummy variable names
  */
-export function getSelectedDummies() {
+window.getSelectedDummies = function getSelectedDummies() {
     const list = document.getElementById('selectedDummiesList');
     if (!list) return [];
     
@@ -220,7 +220,7 @@ export function getSelectedDummies() {
  * @param {Array} dummyNames - Array of dummy variable names to create
  * @returns {Object} - Extended dataset with dummy variables
  */
-export function createDummyVariablesInData(data, yearColumn, dummyNames) {
+window.createDummyVariablesInData = function createDummyVariablesInData(data, yearColumn, dummyNames) {
     if (!data || !yearColumn || !dummyNames?.length) return data;
     
     // Clone the data
