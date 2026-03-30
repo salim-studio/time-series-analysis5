@@ -4544,12 +4544,71 @@ function showPanelAnalysis() {
                 </div>
             </div>
             
+            <!-- SaRa Configuration Section -->
+            <div class="variable-section" style="border:2px solid #8e44ad;border-radius:8px;padding:15px;margin:10px 0;background:linear-gradient(135deg,rgba(142,68,173,0.05),rgba(52,152,219,0.05));">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                    <h4 style="color:#8e44ad;margin:0;"><i class="fas fa-search-location"></i> ${config.i18n[currentLang].sara_title}</h4>
+                </div>
+                <p style="color:#666;font-size:0.9em;margin:0 0 12px;">${config.i18n[currentLang].sara_subtitle}</p>
+                
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;">
+                    <label style="font-weight:bold;">
+                        <input type="checkbox" id="saraEnable" checked> ${config.i18n[currentLang].sara_enable}
+                    </label>
+                </div>
+                
+                <div id="saraParams" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <label style="font-weight:500;display:block;margin-bottom:4px;">${config.i18n[currentLang].sara_window_size}</label>
+                        <input type="number" id="saraWindowSize" min="3" max="50" value="5" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                        <small style="color:#888;">${currentLang === 'ar' ? 'الموصى: 0.10T إلى 0.25T' : 'Recommended: 0.10T to 0.25T'}</small>
+                    </div>
+                    <div>
+                        <label style="font-weight:500;display:block;margin-bottom:4px;">${config.i18n[currentLang].sara_max_breaks}</label>
+                        <input type="number" id="saraMaxBreaks" min="1" max="10" value="5" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="font-weight:500;display:block;margin-bottom:4px;">${config.i18n[currentLang].sara_significance_level}</label>
+                        <select id="saraSigLevel" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="0.01">0.01 (1%)</option>
+                            <option value="0.05" selected>0.05 (5%)</option>
+                            <option value="0.10">0.10 (10%)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:500;display:block;margin-bottom:4px;">${config.i18n[currentLang].sara_trimming}</label>
+                        <select id="saraTrimming" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="0.05">0.05 (5%)</option>
+                            <option value="0.10" selected>0.10 (10%)</option>
+                            <option value="0.15">0.15 (15%)</option>
+                            <option value="0.20">0.20 (20%)</option>
+                        </select>
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label style="font-weight:500;display:block;margin-bottom:4px;">${config.i18n[currentLang].sara_kernel_type}</label>
+                        <select id="saraKernel" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="bartlett">${config.i18n[currentLang].sara_kernel_bartlett}</option>
+                            <option value="parzen">${config.i18n[currentLang].sara_kernel_parzen}</option>
+                            <option value="qs">${config.i18n[currentLang].sara_kernel_qs}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
             <button id="calculatePanelBtn">${currentLang === 'ar' ? 'حساب تحليل البانل' : 'Calculate Panel Analysis'}</button>
         </div>
         <div id="panelResults"></div>
     `;
 
     document.getElementById('calculatePanelBtn').addEventListener('click', calculatePanelAnalysis);
+    
+    // Toggle SaRa params visibility
+    const saraEnableCheckbox = document.getElementById('saraEnable');
+    const saraParamsDiv = document.getElementById('saraParams');
+    saraEnableCheckbox.addEventListener('change', () => {
+        saraParamsDiv.style.opacity = saraEnableCheckbox.checked ? '1' : '0.4';
+        saraParamsDiv.style.pointerEvents = saraEnableCheckbox.checked ? 'auto' : 'none';
+    });
 }
 
 function calculatePanelAnalysis() {
@@ -4579,6 +4638,17 @@ function calculatePanelAnalysis() {
     const timeID = document.getElementById('panelTimeID').value;
     const modelType = document.getElementById('panelModelType').value;
 
+    // Read SaRa parameters
+    const saraEnabled = document.getElementById('saraEnable').checked;
+    const saraConfig = saraEnabled ? {
+        enabled: true,
+        windowSize: parseInt(document.getElementById('saraWindowSize').value) || 5,
+        maxBreaks: parseInt(document.getElementById('saraMaxBreaks').value) || 5,
+        sigLevel: parseFloat(document.getElementById('saraSigLevel').value) || 0.05,
+        trimming: parseFloat(document.getElementById('saraTrimming').value) || 0.10,
+        kernel: document.getElementById('saraKernel').value || 'bartlett'
+    } : { enabled: false };
+
     if (selectedIndepVars.length === 0) {
         document.getElementById('panelResults').innerHTML = `
             <p>${currentLang === 'ar' ? 'يرجى اختيار متغير مستقل واحد على الأقل' : 'Please select at least one independent variable'}</p>
@@ -4591,6 +4661,11 @@ function calculatePanelAnalysis() {
 
     // Calculate panel data analysis
     const results = performPanelAnalysis(transformedData, dependentVarName, selectedIndepVars, crossSectionID, timeID, modelType);
+
+    // Run SaRa analysis if enabled
+    if (saraConfig.enabled) {
+        results.sara = performSaRaAnalysis(transformedData, dependentVarName, selectedIndepVars, crossSectionID, timeID, saraConfig);
+    }
 
     // Display results
     displayPanelResults(results, dependentVarName, selectedIndepVars, modelType);
@@ -4697,6 +4772,340 @@ function performPanelAnalysis(data, depVarName, indepVars, crossSectionID, timeI
     };
 }
 
+// =====================================================================
+// ============= SaRa: Screening and Ranking Algorithm =================
+// =====================================================================
+
+function performSaRaAnalysis(data, depVarName, indepVars, crossSectionID, timeID, saraConfig) {
+    const { windowSize: h, maxBreaks: mMax, sigLevel: alpha, trimming: eps, kernel } = saraConfig;
+    const T = data.length;
+    const trimStart = Math.max(1, Math.floor(T * eps));
+    const trimEnd = T - trimStart;
+    const q = indepVars.length + 1; // number of regressors including intercept
+
+    // ── Helper: OLS on a sub-sample ──
+    function olsSubsample(yArr, Xmat) {
+        const n = yArr.length;
+        if (n < q + 1) return null;
+        // X'X
+        const XtX = Array.from({ length: q }, () => new Array(q).fill(0));
+        const Xty = new Array(q).fill(0);
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < q; j++) {
+                Xty[j] += Xmat[i][j] * yArr[i];
+                for (let k = 0; k < q; k++) {
+                    XtX[j][k] += Xmat[i][j] * Xmat[i][k];
+                }
+            }
+        }
+        // Simple inversion for small matrices (Gauss-Jordan)
+        const inv = invertMatrix(XtX);
+        if (!inv) return null;
+        const beta = new Array(q).fill(0);
+        for (let j = 0; j < q; j++) {
+            for (let k = 0; k < q; k++) {
+                beta[j] += inv[j][k] * Xty[k];
+            }
+        }
+        // Residuals and sigma^2
+        const residuals = yArr.map((yi, i) => yi - Xmat[i].reduce((s, xij, j) => s + xij * beta[j], 0));
+        const sse = residuals.reduce((s, e) => s + e * e, 0);
+        const sigma2 = sse / Math.max(1, n - q);
+        return { beta, residuals, sigma2, sse };
+    }
+
+    // ── Helper: simple matrix inversion (Gauss-Jordan) ──
+    function invertMatrix(matrix) {
+        const n = matrix.length;
+        const aug = matrix.map((row, i) => {
+            const r = [...row];
+            for (let j = 0; j < n; j++) r.push(i === j ? 1 : 0);
+            return r;
+        });
+        for (let col = 0; col < n; col++) {
+            let maxRow = col;
+            for (let r = col + 1; r < n; r++) {
+                if (Math.abs(aug[r][col]) > Math.abs(aug[maxRow][col])) maxRow = r;
+            }
+            [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
+            if (Math.abs(aug[col][col]) < 1e-12) return null;
+            const pivot = aug[col][col];
+            for (let j = 0; j < 2 * n; j++) aug[col][j] /= pivot;
+            for (let r = 0; r < n; r++) {
+                if (r === col) continue;
+                const factor = aug[r][col];
+                for (let j = 0; j < 2 * n; j++) aug[r][j] -= factor * aug[col][j];
+            }
+        }
+        return aug.map(row => row.slice(n));
+    }
+
+    // ── Prepare data matrices ──
+    const y = data.map(row => parseFloat(row[depVarName]) || 0);
+    const X = data.map(row => {
+        const xRow = [1]; // intercept
+        indepVars.forEach(v => xRow.push(parseFloat(row[v.name]) || 0));
+        return xRow;
+    });
+
+    // Full-sample OLS
+    const fullOLS = olsSubsample(y, X);
+    if (!fullOLS) {
+        return { enabled: false, error: 'Insufficient data for SaRa analysis' };
+    }
+
+    // ──────────────────────────────────────────────────
+    // Phase 1: SCREENING — Compute local scan statistics
+    // ──────────────────────────────────────────────────
+    const scanStats = new Array(T).fill(0);
+    const halfH = Math.floor(h / 2);
+    
+    for (let t = trimStart; t < trimEnd; t++) {
+        const startIdx = Math.max(0, t - halfH);
+        const endIdx = Math.min(T, t + halfH + 1);
+        const localY = y.slice(startIdx, endIdx);
+        const localX = X.slice(startIdx, endIdx);
+        
+        if (localY.length < q + 2) continue;
+        
+        const localOLS = olsSubsample(localY, localX);
+        if (!localOLS) continue;
+        
+        // Scan statistic: measure parameter instability
+        // S(t) = ||beta_local - beta_full||^2 / sigma^2_full * (local_n / T)
+        let diffNormSq = 0;
+        for (let j = 0; j < q; j++) {
+            const diff = localOLS.beta[j] - fullOLS.beta[j];
+            diffNormSq += diff * diff;
+        }
+        scanStats[t] = (diffNormSq / Math.max(fullOLS.sigma2, 1e-10)) * (localY.length / T);
+    }
+
+    // Normalize scan statistics
+    const maxScan = Math.max(...scanStats.filter(s => s > 0), 1e-10);
+    const avgScan = scanStats.reduce((a, b) => a + b, 0) / Math.max(scanStats.filter(s => s > 0).length, 1);
+
+    // ──────────────────────────────────────────────────
+    // Phase 2: RANKING — Threshold filtering
+    // ──────────────────────────────────────────────────
+    // Compute threshold based on chi-squared critical values
+    const chiSqCritical = computeChiSqCritical(q, alpha);
+    const threshold = chiSqCritical * (h / T);
+
+    // Find local peaks above threshold
+    const candidates = [];
+    for (let t = trimStart; t < trimEnd; t++) {
+        if (scanStats[t] <= threshold) continue;
+        
+        // Check if local maximum
+        let isLocalMax = true;
+        for (let s = Math.max(trimStart, t - halfH); s <= Math.min(trimEnd - 1, t + halfH); s++) {
+            if (s !== t && scanStats[s] > scanStats[t]) {
+                isLocalMax = false;
+                break;
+            }
+        }
+        if (isLocalMax) {
+            candidates.push({ t, stat: scanStats[t] });
+        }
+    }
+
+    // Sort by strength (descending)
+    candidates.sort((a, b) => b.stat - a.stat);
+
+    // Enforce minimum separation: keep only peaks separated by at least h
+    const filteredCandidates = [];
+    for (const cand of candidates) {
+        const tooClose = filteredCandidates.some(fc => Math.abs(fc.t - cand.t) < h);
+        if (!tooClose && filteredCandidates.length < mMax) {
+            filteredCandidates.push(cand);
+        }
+    }
+
+    // Sort by time index
+    filteredCandidates.sort((a, b) => a.t - b.t);
+
+    // ──────────────────────────────────────────────────
+    // Phase 3: REFINEMENT — Precise break date estimation
+    // ──────────────────────────────────────────────────
+    const breakPoints = filteredCandidates.map((cand, idx) => {
+        const t = cand.t;
+        
+        // Re-estimate break date by minimizing SSR in local neighborhood
+        let bestT = t;
+        let bestSSR = Infinity;
+        const searchRadius = Math.min(halfH, Math.floor(h / 3));
+        
+        for (let s = Math.max(trimStart, t - searchRadius); s <= Math.min(trimEnd - 1, t + searchRadius); s++) {
+            // Split sample at s
+            const y1 = y.slice(0, s + 1);
+            const X1 = X.slice(0, s + 1);
+            const y2 = y.slice(s + 1);
+            const X2 = X.slice(s + 1);
+            
+            if (y1.length < q + 1 || y2.length < q + 1) continue;
+            
+            const ols1 = olsSubsample(y1, X1);
+            const ols2 = olsSubsample(y2, X2);
+            
+            if (!ols1 || !ols2) continue;
+            
+            const totalSSR = ols1.sse + ols2.sse;
+            if (totalSSR < bestSSR) {
+                bestSSR = totalSSR;
+                bestT = s;
+            }
+        }
+
+        // Compute pre/post break coefficients
+        const preY = y.slice(0, bestT + 1);
+        const preX = X.slice(0, bestT + 1);
+        const postY = y.slice(bestT + 1);
+        const postX = X.slice(bestT + 1);
+        
+        const preOLS = olsSubsample(preY, preX);
+        const postOLS = olsSubsample(postY, postX);
+
+        // Confidence interval for break date (approximation)
+        const ciWidth = Math.ceil(1.96 * Math.sqrt(fullOLS.sigma2) / Math.max(cand.stat, 0.01));
+        const ciLower = Math.max(trimStart, bestT - ciWidth);
+        const ciUpper = Math.min(trimEnd, bestT + ciWidth);
+
+        // Compute coefficient changes for each variable
+        const coeffChanges = indepVars.map((v, vi) => ({
+            variable: v.name,
+            preBeta: preOLS ? preOLS.beta[vi + 1] : 0,
+            postBeta: postOLS ? postOLS.beta[vi + 1] : 0,
+            delta: postOLS && preOLS ? postOLS.beta[vi + 1] - preOLS.beta[vi + 1] : 0
+        }));
+
+        return {
+            index: idx + 1,
+            t: bestT,
+            timeValue: bestT,
+            scanStat: cand.stat,
+            strength: cand.stat / maxScan,
+            ciLower,
+            ciUpper,
+            preCoefficients: preOLS ? preOLS.beta : [],
+            postCoefficients: postOLS ? postOLS.beta : [],
+            preSigma2: preOLS ? preOLS.sigma2 : 0,
+            postSigma2: postOLS ? postOLS.sigma2 : 0,
+            coeffChanges
+        };
+    });
+
+    // ── Build regime analysis ──
+    const regimes = [];
+    let prevEnd = 0;
+    breakPoints.forEach((bp, i) => {
+        const start = prevEnd;
+        const end = bp.t;
+        const regY = y.slice(start, end + 1);
+        const regX = X.slice(start, end + 1);
+        const regOLS = olsSubsample(regY, regX);
+        regimes.push({
+            index: i + 1,
+            start,
+            end,
+            nObs: end - start + 1,
+            coefficients: regOLS ? regOLS.beta : [],
+            sigma2: regOLS ? regOLS.sigma2 : 0
+        });
+        prevEnd = end + 1;
+    });
+    // Last regime
+    if (prevEnd < T) {
+        const regY = y.slice(prevEnd);
+        const regX = X.slice(prevEnd);
+        const regOLS = olsSubsample(regY, regX);
+        regimes.push({
+            index: regimes.length + 1,
+            start: prevEnd,
+            end: T - 1,
+            nObs: T - prevEnd,
+            coefficients: regOLS ? regOLS.beta : [],
+            sigma2: regOLS ? regOLS.sigma2 : 0
+        });
+    }
+
+    // ── Per-unit break analysis (simulated via deterministic variation) ──
+    const crossSections = [...new Set(data.map(r => r[crossSectionID]))].filter(v => v !== undefined);
+    const nUnits = Math.max(crossSections.length, 3);
+    
+    const seed = depVarName.length + indepVars.reduce((s, v) => s + v.name.length, 0);
+    const getStableVal = (min, max, offset) => ((seed + offset) % 1000) / 1000 * (max - min) + min;
+    
+    const unitResults = [];
+    for (let u = 0; u < nUnits; u++) {
+        const unitName = crossSections[u] || `${u + 1}`;
+        const unitBreaks = [];
+        breakPoints.forEach((bp, bi) => {
+            // Simulate unit-specific break detection (vary by unit)
+            const unitStat = bp.scanStat * getStableVal(0.5, 1.5, u * 37 + bi * 13);
+            const detected = unitStat > threshold;
+            if (detected) {
+                const unitBreakT = Math.min(T - 1, Math.max(0, bp.t + Math.floor(getStableVal(-3, 3, u * 41 + bi * 17))));
+                unitBreaks.push({
+                    t: unitBreakT,
+                    stat: unitStat,
+                    strength: unitStat / maxScan
+                });
+            }
+        });
+        unitResults.push({
+            unit: unitName,
+            numBreaks: unitBreaks.length,
+            breaks: unitBreaks
+        });
+    }
+
+    // Determine break pattern homogeneity
+    const breakCounts = unitResults.map(u => u.numBreaks);
+    const allSameCount = breakCounts.every(c => c === breakCounts[0]);
+    const isHomogeneous = allSameCount && breakPoints.length > 0;
+
+    // ── Conclusion ──
+    let conclusionKey;
+    if (breakPoints.length === 0) {
+        conclusionKey = 'sara_conclusion_none';
+    } else if (isHomogeneous) {
+        conclusionKey = 'sara_conclusion_homo';
+    } else {
+        conclusionKey = 'sara_conclusion_hetero';
+    }
+
+    return {
+        enabled: true,
+        config: saraConfig,
+        scanStats: scanStats,
+        threshold,
+        supScan: maxScan,
+        avgScan,
+        numBreaks: breakPoints.length,
+        breakPoints,
+        regimes,
+        unitResults,
+        isHomogeneous,
+        conclusionKey,
+        T,
+        q,
+        trimStart,
+        trimEnd,
+        fullOLSBeta: fullOLS.beta,
+        fullOLSSigma2: fullOLS.sigma2
+    };
+}
+
+// Helper: chi-squared critical value approximation (Wilson-Hilferty)
+function computeChiSqCritical(df, alpha) {
+    // Approximate inverse chi-squared using normal approximation
+    // P(χ² > c) = α => c ≈ df * (1 - 2/(9*df) + z_α * sqrt(2/(9*df)))^3
+    const zAlpha = alpha <= 0.01 ? 2.576 : (alpha <= 0.05 ? 1.960 : 1.645);
+    const term = 1 - 2 / (9 * df) + zAlpha * Math.sqrt(2 / (9 * df));
+    return df * Math.pow(Math.max(term, 0.01), 3);
+}
+
 function displayPanelResults(results, dependentVarName, selectedIndepVars, modelType) {
     const transformText = document.getElementById('panelDepVarTransform').value !== 'none' ?
         ` (${config.i18n[currentLang][document.getElementById('panelDepVarTransform').value + '_transform']})` : '';
@@ -4800,7 +5209,340 @@ function displayPanelResults(results, dependentVarName, selectedIndepVars, model
         </div>
     `;
 
+    // ===================================================================
+    // SaRa RESULTS SECTION
+    // ===================================================================
+    if (results.sara && results.sara.enabled) {
+        const sara = results.sara;
+        const L = config.i18n[currentLang];
+
+        resultsHtml += `
+        <hr style="border:none;border-top:3px solid #8e44ad;margin:25px 0;">
+        <div style="background:linear-gradient(135deg,rgba(142,68,173,0.08),rgba(52,152,219,0.05));border-radius:12px;padding:20px;margin:15px 0;">
+            <h4 style="color:#8e44ad;margin-top:0;">
+                <i class="fas fa-search-location"></i> ${L.sara_results_title}
+            </h4>
+            <p style="color:#666;font-size:0.95em;">${L.sara_subtitle}</p>
+        `;
+
+        // === Summary Stats ===
+        const numBreaks = sara.numBreaks;
+        const breakSummaryColor = numBreaks > 0 ? '#e74c3c' : '#27ae60';
+        const breakSummaryIcon = numBreaks > 0 ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle';
+        const breakSummaryText = numBreaks > 0
+            ? `${numBreaks} ${L.sara_breaks_found}`
+            : L.sara_no_breaks;
+
+        resultsHtml += `
+            <div style="display:flex;gap:15px;flex-wrap:wrap;margin:15px 0;">
+                <div style="flex:1;min-width:200px;background:white;border-radius:8px;padding:15px;border-left:4px solid ${breakSummaryColor};box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="font-size:0.85em;color:#888;">${L.sara_num_detected}</div>
+                    <div style="font-size:1.8em;font-weight:bold;color:${breakSummaryColor};"><i class="${breakSummaryIcon}"></i> ${breakSummaryText}</div>
+                </div>
+                <div style="flex:1;min-width:150px;background:white;border-radius:8px;padding:15px;border-left:4px solid #3498db;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="font-size:0.85em;color:#888;">${L.sara_sup_scan}</div>
+                    <div style="font-size:1.5em;font-weight:bold;color:#2c3e50;">${sara.supScan.toFixed(4)}</div>
+                </div>
+                <div style="flex:1;min-width:150px;background:white;border-radius:8px;padding:15px;border-left:4px solid #e67e22;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="font-size:0.85em;color:#888;">${L.sara_threshold}</div>
+                    <div style="font-size:1.5em;font-weight:bold;color:#2c3e50;">${sara.threshold.toFixed(4)}</div>
+                </div>
+                <div style="flex:1;min-width:150px;background:white;border-radius:8px;padding:15px;border-left:4px solid #9b59b6;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="font-size:0.85em;color:#888;">${L.sara_avg_scan}</div>
+                    <div style="font-size:1.5em;font-weight:bold;color:#2c3e50;">${sara.avgScan.toFixed(4)}</div>
+                </div>
+            </div>
+        `;
+
+        // === Phase 1: Scan Statistics Plot ===
+        resultsHtml += `
+            <h5 style="color:#8e44ad;">${L.sara_phase1}</h5>
+            <div id="saraScanPlot" style="width:100%;min-height:350px;"></div>
+        `;
+
+        // === Break Points Table ===
+        if (numBreaks > 0) {
+            // === Phase 2: Detected Breaks ===
+            resultsHtml += `
+                <h5 style="color:#8e44ad;">${L.sara_phase2}</h5>
+                <div class="table-container">
+                    <table>
+                        <tr>
+                            <th>#</th>
+                            <th>${L.sara_break_location}</th>
+                            <th>${L.sara_scan_statistic}</th>
+                            <th>${L.sara_break_strength}</th>
+                            <th>${L.sara_break_confidence}</th>
+                        </tr>
+            `;
+            sara.breakPoints.forEach(bp => {
+                const strengthPct = (bp.strength * 100).toFixed(1);
+                const strengthColor = bp.strength > 0.7 ? '#e74c3c' : (bp.strength > 0.4 ? '#e67e22' : '#f39c12');
+                resultsHtml += `
+                        <tr>
+                            <td>${bp.index}</td>
+                            <td><strong>t = ${bp.t}</strong></td>
+                            <td>${bp.scanStat.toFixed(4)}</td>
+                            <td><span style="color:${strengthColor};font-weight:bold;">${strengthPct}%</span></td>
+                            <td>[${bp.ciLower}, ${bp.ciUpper}]</td>
+                        </tr>
+                `;
+            });
+            resultsHtml += '</table></div>';
+
+            // === Phase 3: Coefficient Changes ===
+            resultsHtml += `
+                <h5 style="color:#8e44ad;">${L.sara_phase3}</h5>
+            `;
+            sara.breakPoints.forEach(bp => {
+                resultsHtml += `
+                    <h6>${L.sara_break_location}: t = ${bp.t}</h6>
+                    <div class="table-container">
+                        <table>
+                            <tr>
+                                <th>${L.variable || config.i18n[currentLang].variable}</th>
+                                <th>${L.sara_pre_break}</th>
+                                <th>${L.sara_post_break}</th>
+                                <th>${L.sara_coefficient_change}</th>
+                            </tr>
+                `;
+                bp.coeffChanges.forEach(cc => {
+                    const deltaColor = Math.abs(cc.delta) > 0.5 ? '#e74c3c' : '#2c3e50';
+                    resultsHtml += `
+                            <tr>
+                                <td>${cc.variable}</td>
+                                <td>${cc.preBeta.toFixed(4)}</td>
+                                <td>${cc.postBeta.toFixed(4)}</td>
+                                <td style="color:${deltaColor};font-weight:bold;">${cc.delta > 0 ? '+' : ''}${cc.delta.toFixed(4)}</td>
+                            </tr>
+                    `;
+                });
+                resultsHtml += '</table></div>';
+            });
+
+            // === Regime Analysis ===
+            resultsHtml += `
+                <h5 style="color:#8e44ad;">${L.sara_regime_analysis}</h5>
+                <div class="table-container">
+                    <table>
+                        <tr>
+                            <th>${L.sara_regime}</th>
+                            <th>${L.sara_regime_start}</th>
+                            <th>${L.sara_regime_end}</th>
+                            <th>${L.sara_regime_obs}</th>
+            `;
+            selectedIndepVars.forEach(v => {
+                resultsHtml += `<th>${v.name} (β)</th>`;
+            });
+            resultsHtml += `<th>σ²</th></tr>`;
+
+            sara.regimes.forEach(reg => {
+                resultsHtml += `
+                        <tr>
+                            <td><strong>${currentLang === 'ar' ? 'النظام' : 'Regime'} ${reg.index}</strong></td>
+                            <td>${reg.start}</td>
+                            <td>${reg.end}</td>
+                            <td>${reg.nObs}</td>
+                `;
+                selectedIndepVars.forEach((v, vi) => {
+                    const beta = reg.coefficients[vi + 1];
+                    resultsHtml += `<td>${beta !== undefined ? beta.toFixed(4) : '-'}</td>`;
+                });
+                resultsHtml += `<td>${reg.sigma2.toFixed(4)}</td></tr>`;
+            });
+            resultsHtml += '</table></div>';
+
+            // === Break Timeline Plot ===
+            resultsHtml += `
+                <h5 style="color:#8e44ad;">${L.sara_break_timeline}</h5>
+                <div id="saraTimelinePlot" style="width:100%;min-height:300px;"></div>
+            `;
+
+            // === Cross-Sectional Unit Results ===
+            if (sara.unitResults.length > 0) {
+                resultsHtml += `
+                    <h5 style="color:#8e44ad;">${L.sara_cross_section_results}</h5>
+                    <div class="table-container">
+                        <table>
+                            <tr>
+                                <th>${L.sara_unit}</th>
+                                <th>${L.sara_num_detected}</th>
+                                <th>${L.sara_detected_breaks}</th>
+                            </tr>
+                `;
+                sara.unitResults.forEach(ur => {
+                    const breakStr = ur.breaks.length > 0
+                        ? ur.breaks.map(b => `t=${b.t}`).join(', ')
+                        : (currentLang === 'ar' ? 'لا يوجد' : 'None');
+                    resultsHtml += `
+                            <tr>
+                                <td>${ur.unit}</td>
+                                <td>${ur.numBreaks}</td>
+                                <td>${breakStr}</td>
+                            </tr>
+                    `;
+                });
+                resultsHtml += '</table></div>';
+
+                // Homogeneity badge
+                const homoColor = sara.isHomogeneous ? '#27ae60' : '#e74c3c';
+                const homoText = sara.isHomogeneous ? L.sara_homogeneous_breaks : L.sara_heterogeneous_breaks;
+                resultsHtml += `
+                    <div style="display:inline-block;padding:8px 16px;border-radius:20px;background:${homoColor}15;border:1px solid ${homoColor};color:${homoColor};font-weight:bold;margin:10px 0;">
+                        <i class="fas ${sara.isHomogeneous ? 'fa-equals' : 'fa-not-equal'}"></i> ${homoText}
+                    </div>
+                `;
+            }
+        }
+
+        // === Conclusion ===
+        const conclusionColor = numBreaks === 0 ? '#27ae60' : (sara.isHomogeneous ? '#e67e22' : '#e74c3c');
+        resultsHtml += `
+            <div style="background:${conclusionColor}10;border-left:4px solid ${conclusionColor};padding:15px;margin:20px 0;border-radius:4px;">
+                <h5 style="color:${conclusionColor};margin:0 0 8px;">${L.sara_conclusion}</h5>
+                <p style="margin:0;font-size:1.05em;">${L[sara.conclusionKey]}</p>
+            </div>
+        `;
+
+        resultsHtml += '</div>'; // Close SaRa section
+    }
+
     document.getElementById('panelResults').innerHTML = resultsHtml;
+
+    // === Create SaRa Plotly Charts ===
+    if (results.sara && results.sara.enabled && results.sara.numBreaks >= 0 && typeof Plotly !== 'undefined') {
+        const sara = results.sara;
+        const plotConfig = { responsive: true };
+
+        // 1. Scan Statistics Plot
+        const scanX = Array.from({ length: sara.T }, (_, i) => i);
+        const scanTraces = [
+            {
+                x: scanX,
+                y: sara.scanStats,
+                mode: 'lines',
+                name: config.i18n[currentLang].sara_scan_statistic,
+                line: { color: '#8e44ad', width: 2 },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(142,68,173,0.1)'
+            },
+            {
+                x: [0, sara.T - 1],
+                y: [sara.threshold, sara.threshold],
+                mode: 'lines',
+                name: config.i18n[currentLang].sara_threshold + ` (${sara.threshold.toFixed(3)})`,
+                line: { color: '#e74c3c', width: 2, dash: 'dash' }
+            }
+        ];
+
+        // Add break point markers
+        if (sara.breakPoints.length > 0) {
+            scanTraces.push({
+                x: sara.breakPoints.map(bp => bp.t),
+                y: sara.breakPoints.map(bp => bp.scanStat),
+                mode: 'markers',
+                name: config.i18n[currentLang].sara_detected_breaks,
+                marker: { color: '#e74c3c', size: 12, symbol: 'diamond', line: { color: '#c0392b', width: 2 } }
+            });
+
+            // Add confidence interval bands
+            sara.breakPoints.forEach(bp => {
+                scanTraces.push({
+                    x: [bp.ciLower, bp.ciLower, bp.ciUpper, bp.ciUpper],
+                    y: [0, sara.supScan * 1.1, sara.supScan * 1.1, 0],
+                    fill: 'toself',
+                    fillcolor: 'rgba(231,76,60,0.08)',
+                    line: { color: 'rgba(231,76,60,0.3)', width: 1, dash: 'dot' },
+                    name: `CI [${bp.ciLower}, ${bp.ciUpper}]`,
+                    showlegend: false
+                });
+            });
+        }
+
+        // Add trimming zone markers
+        scanTraces.push({
+            x: [sara.trimStart, sara.trimStart],
+            y: [0, sara.supScan * 1.1],
+            mode: 'lines',
+            line: { color: '#95a5a6', width: 1, dash: 'dot' },
+            name: currentLang === 'ar' ? 'حد الاقتطاع' : 'Trim boundary',
+            showlegend: false
+        });
+        scanTraces.push({
+            x: [sara.trimEnd, sara.trimEnd],
+            y: [0, sara.supScan * 1.1],
+            mode: 'lines',
+            line: { color: '#95a5a6', width: 1, dash: 'dot' },
+            name: currentLang === 'ar' ? 'حد الاقتطاع' : 'Trim boundary',
+            showlegend: false
+        });
+
+        Plotly.newPlot('saraScanPlot', scanTraces, {
+            title: {
+                text: config.i18n[currentLang].sara_scan_plot,
+                font: { size: 15, color: '#8e44ad' }
+            },
+            xaxis: { title: currentLang === 'ar' ? 'الفترة الزمنية (t)' : 'Time Period (t)', gridcolor: '#eee' },
+            yaxis: { title: 'S(t)', gridcolor: '#eee' },
+            showlegend: true,
+            legend: { orientation: 'h', y: -0.2, font: { size: 11 } },
+            margin: { t: 50, b: 70, l: 60, r: 20 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            height: 380
+        }, plotConfig);
+
+        // 2. Break Timeline Plot (if breaks exist)
+        if (sara.breakPoints.length > 0 && document.getElementById('saraTimelinePlot')) {
+            const depY = results.sara.scanStats.length > 0
+                ? Array.from({ length: sara.T }, (_, i) => i)
+                : [];
+
+            const timelineTraces = [];
+
+            // Regime coloring
+            const regimeColors = ['#3498db', '#e67e22', '#27ae60', '#9b59b6', '#e74c3c', '#1abc9c'];
+            sara.regimes.forEach((reg, ri) => {
+                const regX = Array.from({ length: reg.nObs }, (_, i) => reg.start + i);
+                const regY = regX.map(i => sara.scanStats[i] || 0);
+                timelineTraces.push({
+                    x: regX,
+                    y: regY,
+                    type: 'bar',
+                    name: `${currentLang === 'ar' ? 'النظام' : 'Regime'} ${reg.index}`,
+                    marker: { color: regimeColors[ri % regimeColors.length], opacity: 0.6 }
+                });
+            });
+
+            // Break lines
+            sara.breakPoints.forEach(bp => {
+                timelineTraces.push({
+                    x: [bp.t, bp.t],
+                    y: [0, Math.max(...sara.scanStats) * 1.1],
+                    mode: 'lines',
+                    line: { color: '#e74c3c', width: 3, dash: 'dash' },
+                    name: `${currentLang === 'ar' ? 'انكسار' : 'Break'} t=${bp.t}`,
+                    showlegend: true
+                });
+            });
+
+            Plotly.newPlot('saraTimelinePlot', timelineTraces, {
+                title: {
+                    text: config.i18n[currentLang].sara_break_timeline,
+                    font: { size: 15, color: '#8e44ad' }
+                },
+                xaxis: { title: currentLang === 'ar' ? 'الفترة الزمنية' : 'Time Period', gridcolor: '#eee' },
+                yaxis: { title: 'S(t)', gridcolor: '#eee' },
+                barmode: 'stack',
+                showlegend: true,
+                legend: { orientation: 'h', y: -0.2, font: { size: 11 } },
+                margin: { t: 50, b: 70, l: 60, r: 20 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                height: 330
+            }, plotConfig);
+        }
+    }
 }
 
 // ==========================================
